@@ -134,6 +134,7 @@ jobs:
     - name: Clone device tree (Github)
       if: |
         !contains( github.event.inputs.DEVICE_TREE_URL,'/TeamWin/' )
+        && contains( github.event.inputs.DEVICE_TREE_URL,'/github/' )
         && steps.buildtree.outputs.value == 'twrp'
       run: |
         sed -i "s%\!--project name=\"{DEVICE_TREE_URL_REPO}%project name=\"$(grep -oP '(?<=github.com/).*' <<< ${{ github.event.inputs.DEVICE_TREE_URL }})%g" .repo/local_manifests/roomservice.xml
