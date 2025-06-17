@@ -43,29 +43,10 @@ jobs:
     permissions:
       contents: write
     steps:
-    - name: Display Run Parameters
-      run: |
-        echo "::group::User Environment Variables"
-        echo "Manifest URL: ${{ github.event.inputs.MANIFEST_URL }}"
-        echo "Manifest Branch: ${{ github.event.inputs.MANIFEST_BRANCH }}"
-        echo "Device Tree URL: ${{ github.event.inputs.DEVICE_TREE_URL }}"
-        echo "Device Tree Branch: ${{ github.event.inputs.DEVICE_TREE_BRANCH }}"
-        echo "Device Path: ${{ github.event.inputs.DEVICE_PATH }}"
-        echo "Device Name: ${{ github.event.inputs.DEVICE_NAME }}"
-        echo "Makefile Name: ${{ github.event.inputs.MAKEFILE_NAME }}"
-        echo "Build Target: ${{ github.event.inputs.BUILD_TARGET }}.img"
-        echo "::endgroup::"
+    - uses: actions/checkout@v4
+    - uses: rokibhasansagar/slimhub_actions@main
 
-    # You might want to Checkout your repo first, but not mandatory
-    - name: Check Out
-      uses: actions/checkout@v4
-
-    # Cleanup The Actions Workspace Using Custom Composite Run Actions
-    - name: Cleanup
-      uses: rokibhasansagar/slimhub_actions@main
-      # That's it! Now use your normal steps
-
-    - name: Prepare the environment
+    - name: prepare env
       run: |
         sudo apt update && sudo apt upgrade -y
         DEBIAN_FRONTEND=noninteractive sudo apt install -yq \
@@ -76,13 +57,12 @@ jobs:
             build-essential libgtk-3-dev libglu1-mesa-dev freeglut3-dev git libxml2 lzop pngcrush schedtool squashfs-tools \
             imagemagick libbz2-dev lzma ncftp qemu-user-static libstdc++-10-dev libncurses6 python3 tar
 
-    - name: Install OpenJDK
-      uses: actions/setup-java@v4
+    - uses: actions/setup-java@v4
       with:
         distribution: 'zulu'
         java-version: '11'
 
-    - name: Setup SSH Keys
+    - name: setup SSH keys
       if: ${{ startsWith(github.event.inputs.MANIFEST_URL, 'git@github.com') || 
           startsWith(github.event.inputs.DEVICE_TREE_URL, 'git@github.com') }}
       uses: webfactory/ssh-agent@v0.9.0
@@ -90,14 +70,14 @@ jobs:
           ssh-private-key: |
             ${{ secrets.SSH_PRIVATE_KEY }}
 
-    - name: Install repo
+    - name: install repo
       run: |
         mkdir ~/bin
         curl https://storage.googleapis.com/git-repo-downloads/repo > ~/bin/repo
         chmod a+x ~/bin/repo
         sudo ln -sf ~/bin/repo /usr/bin/repo
 
-    - name: Initialize repo
+    - name: initialize repo
       run: |
         mkdir workspace
         cd workspace
@@ -107,17 +87,17 @@ jobs:
         repo init --depth=1 -u ${{ github.event.inputs.MANIFEST_URL }} -b ${{ github.event.inputs.MANIFEST_BRANCH }}
       id: pwd
 
-    - name: Repo Sync
+    - name: repo sync
       run: |
         repo sync -j$(nproc --all) --force-sync
       working-directory: workspace
 
-    - name: Clone device tree
+    - name: clone device tree
       run: |
         git clone ${{ github.event.inputs.DEVICE_TREE_URL }} -b ${{ github.event.inputs.DEVICE_TREE_BRANCH }} ./${{ github.event.inputs.DEVICE_PATH }}
       working-directory: ${{ steps.pwd.outputs.workspace-folder }}
 
-    - name: Check Build Tree
+    - name: check build tree
       uses: haya14busa/action-cond@v1
       id: buildtree
       with:
@@ -132,19 +112,19 @@ jobs:
       working-directory: ${{ steps.pwd.outputs.workspace-folder }}
       continue-on-error: true
 
-    - name: Set Swap Space
+    - name: set swap space
       uses: pierotofy/set-swap-space@master
       with:
         swap-size-gb: 12
 
-    - name: Building recovery
+    - name: build
       run: |
         source build/envsetup.sh
         export ALLOW_MISSING_DEPENDENCIES=true
         lunch ${{ github.event.inputs.MAKEFILE_NAME }}-eng && make clean && make ${{ github.event.inputs.BUILD_TARGET }}image -j$(nproc --all)
       working-directory: ${{ steps.pwd.outputs.workspace-folder }}
 
-    - name: Upload to Release
+    - name: upload
       uses: softprops/action-gh-release@v2
       with:
         files: | 
@@ -154,8 +134,8 @@ jobs:
         name: ${{ github.event.inputs.DEVICE_NAME }}-${{ github.run_id }}
         tag_name: ${{ github.run_id }}
         body: |
-          Manifest: ${{ github.event.inputs.MANIFEST_BRANCH }}
-          Device: ${{ github.event.inputs.DEVICE_NAME }}
-          Target: ${{ github.event.inputs.BUILD_TARGET }}.img
+          manifest: ${{ github.event.inputs.MANIFEST_BRANCH }}
+          device: ${{ github.event.inputs.DEVICE_NAME }}
+          target: ${{ github.event.inputs.BUILD_TARGET }}.img
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
