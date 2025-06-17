@@ -111,8 +111,7 @@ jobs:
         name: ${{ github.event.inputs.DEVICE_NAME }}-${{ github.run_id }}
         tag_name: ${{ github.run_id }}
         body: |
-          manifest: ${{ github.event.inputs.MANIFEST_BRANCH }}
-          device: ${{ github.event.inputs.DEVICE_NAME }}
-          target: ${{ github.event.inputs.BUILD_TARGET }}.img
+          manifest: ${{ github.event.inputs.MANIFEST_URL }} ${{ github.event.inputs.MANIFEST_BRANCH }}
+          device tree: ${{ github.event.inputs.DEVICE_TREE_URL }} ${{ github.event.inputs.DEVICE_TREE_BRANCH }}
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
